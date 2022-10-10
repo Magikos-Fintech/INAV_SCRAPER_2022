@@ -6,11 +6,19 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "apps": [
+    {
+      "name": "nifty_tri_scraper",
+      "script": "./main.js",
+      "autorestart": false,
+      "restart_delay": 1000
+    }
+  ],
+  "author": "Castor",
   "license": "ISC",
   "dependencies": {
     "axios": "^0.27.2",
-    "croner": "^5.1.2",
+    "croner": "^5.2.1",
     "puppeteer": "^18.2.1"
   }
 }
