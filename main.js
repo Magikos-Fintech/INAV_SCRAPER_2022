@@ -68,8 +68,15 @@ async function start()
 						if(diff > 0.005)
 						{
 							console.log("Big diff, Send email");
+							console.log("Error !!!!");
+							console.log(dt, " : ", diff);
+							console.log((nse_inav_data[dt].substring(0,nse_inav_data[dt].length-1)));
+							console.log((investing_inav_data[dt].substring(0,investing_inav_data[dt].length-1)));
 						}
-						console.log("Error !!!!");
+						else
+						{
+							inav_data_obj[key][dt] = nse_inav_data[dt];
+						}
 					}
 					else
 					{
