@@ -2,9 +2,11 @@ const { MS_CRUD_URL, UPDATE_INAV_SCRIPT_URL } = require("./setup");
 const { readMSCRUD, getDDMMYYYY } = require("./extraFunctionalities")
 const { scrape_nse } = require("./nseScraper");
 const { scrape_investing } = require("./investingScraper");
+const { default: axios } = require("axios");
 
 async function start()
 {
+	console.log("Nifty Scraper started");
 	const filters = [{ filterType: "simple" }];
 	const last_inav_scraped_date_sheet_date = await readMSCRUD(MS_CRUD_URL, "last_inav_scraped_date", filters);
 	
@@ -116,10 +118,12 @@ async function start()
 	}
 	console.log(rowData);
 
-	// axios.post(UPDATE_INAV_SCRIPT_URL, {
-	// 	type: "tr_change",
-	// 	data: filteredData
-	// });
+	console.log("Sending data to INAV Sheet");
+	axios.post(UPDATE_INAV_SCRIPT_URL, {
+		type: "inav_data_update",
+		data: rowData
+	});
+	console.log("Execution Completed");
 
 }
 
