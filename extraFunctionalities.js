@@ -17,6 +17,37 @@ async function readMSCRUD(url, s_name, filters) //used for reading data from a s
 	}
 }
 
+async function readKMSCRUD(url, missed_dates_for_proxy_tri) //used for reading data from a sheet
+{
+	try
+	{
+		const { data } = await axios.post(url, {
+			missed_dates_for_proxy_tri: missed_dates_for_proxy_tri,
+			type: "fetch"
+		});
+		return data;
+	}
+	catch(error)
+	{
+		console.log("Error occurred in readKMSCRUD() extraFunctionality.js: ",error.message);
+	}
+}
+
+async function sendErrorEmail(url, error) //used for reading data from a sheet
+{
+	try
+	{
+		await axios.post(url, {
+			error: error,
+			type: "email_error"
+		});
+	}
+	catch(error)
+	{
+		console.log("Error occurred in readKMSCRUD() extraFunctionality.js: ",error.message);
+	}
+}
+
 function getDDMMYYYY(dt) // converts date/date string to Mar 17, 1999
 {
 	try
@@ -62,6 +93,8 @@ function delay(time) // used to stop functionality for perticular time
 
 module.exports = {
     readMSCRUD,
+	readKMSCRUD,
+	sendErrorEmail,
     getDDMMYYYY,
     getDDMMYYYY_for_nse,
     delay

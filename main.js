@@ -1,29 +1,38 @@
-const { MS_CRUD_URL, UPDATE_INAV_SCRIPT_URL } = require("./setup");
-const { readMSCRUD, getDDMMYYYY } = require("./extraFunctionalities")
+const { MS_CRUD_URL, KMS_CRUD_URL, UPDATE_INAV_SCRIPT_URL } = require("./setup");
+const { readMSCRUD, readKMSCRUD, sendErrorEmail, getDDMMYYYY } = require("./extraFunctionalities")
 const { scrape_nse } = require("./nseScraper");
-const { scrape_investing } = require("./investingScraper");
 const { default: axios } = require("axios");
 const cron = require("croner");
 
 async function start()
 {
-	try
+    try
 	{
-		console.log("Nifty Scraper started");
+        console.log("Nifty Scraper started");
 		const filters = [{ filterType: "simple" }];
 		const last_inav_scraped_date_sheet_date = await readMSCRUD(MS_CRUD_URL, "last_inav_scraped_date", filters);
 		
 		const sectors = {};
+		const sectors_for_proxy = {};
 		last_inav_scraped_date_sheet_date.forEach((row) => {
-			sectors[row['SECTOR']] = {
-				LATEST_SCRAPED_DATE: row['LATEST_SCRAPED_DATE'],
-				INVESTING: row['INVESTING'],
-				NSE: row['NSE'],
-				NSE_DROP_DOWN: row['NSE_DROP_DOWN']
+			if(row['SET_PROXY'] == 'FALSE')
+			{
+				sectors[row['SECTOR']] = {
+					LATEST_SCRAPED_DATE: row['LATEST_SCRAPED_DATE'],
+					INVESTING: row['INVESTING'],
+					NSE: row['NSE'],
+					NSE_DROP_DOWN: row['NSE_DROP_DOWN']
+				}
+			}
+			else if(row['SET_PROXY'] == 'TRUE')
+			{
+				sectors_for_proxy[row['SECTOR']] = {
+					LATEST_SCRAPED_DATE: row['LATEST_SCRAPED_DATE']
+				}
 			}
 		});
-		
-		console.log("Scraping from NSE");
+
+        console.log("Scraping from NSE");
 		const nse_res = await scrape_nse(sectors);
 		const nse_data = {};
 		for(let key in nse_res)
@@ -46,70 +55,36 @@ async function start()
 			}
 			nse_data[key] = data;
 		}
-
-		console.log("Scraping from Investing.com");
-		//const investing_res = await scrape_investing(sectors);
-		const investing_res = {
-			'n20': {},
-			'n50': {}
-		};
-
-		const inav_data_obj = {};
-		for(let key in sectors)
+        
+        const inav_data_obj = {};
+        for(let key in sectors)
 		{
-			let data = [];
+            let data = [];
 			inav_data_obj[key] = {};
+			const curr_date = getDDMMYYYY(new Date().setHours(0,0,0,0));
 			let todays_date = new Date().setHours(0,0,0,0);
 			const last_scraped_date = new Date(sectors[key]['LATEST_SCRAPED_DATE']).setHours(0,0,0,0);
 			let nse_inav_data = nse_data[key];
-			let investing_inav_data = investing_res[key];
-			
-			while(todays_date >= last_scraped_date)
+
+            while(todays_date >= last_scraped_date)
 			{
 				let dt = getDDMMYYYY(todays_date);
 				if(nse_inav_data.hasOwnProperty(dt))
 				{
-					if(investing_inav_data.hasOwnProperty(dt))
-					{
-						if(nse_inav_data[dt] != investing_inav_data[dt]) // diff greater than 0.005
-						{
-							let diff = Math.abs((parseFloat(nse_inav_data[dt].substring(0,nse_inav_data[dt].length-1))) - (parseFloat(investing_inav_data[dt].substring(0,investing_inav_data[dt].length-1))));
-							if(diff > 0.005)
-							{
-								console.log("Big diff, Send email");
-								console.log("Error !!!!");
-								console.log(key);
-								console.log(dt, " : ", diff);
-								console.log("NSE : ",(nse_inav_data[dt].substring(0,nse_inav_data[dt].length-1)));
-								console.log("Investing: ",(investing_inav_data[dt].substring(0,investing_inav_data[dt].length-1)));
-								inav_data_obj[key][dt] = nse_inav_data[dt];
-							}
-							else
-							{
-								inav_data_obj[key][dt] = nse_inav_data[dt];
-							}
-						}
-						else
-						{
-							inav_data_obj[key][dt] = investing_inav_data[dt];
-						}
-					}
-					else
-					{
-						inav_data_obj[key][dt] = nse_inav_data[dt];
-					}
-				}
-				else if(investing_inav_data.hasOwnProperty(dt))
-				{
-					inav_data_obj[key][dt] = investing_inav_data[dt];
-				}
+                    inav_data_obj[key][dt] = nse_inav_data[dt];
+                }
+                else if(dt != curr_date && dt != getDDMMYYYY(last_scraped_date))
+                {
+					console.log("TRI Missed for this date: ",dt, " : ",key);
+					let error = "TRI Missed for this date: "+dt+" : "+key;
+					await sendErrorEmail(KMS_CRUD_URL, error);
+                }
 				todays_date = new Date(todays_date);
 				todays_date = new Date(todays_date.setDate(todays_date.getDate() - 1)).setHours(0,0,0,0);
-			}
-		}
+            }
+        }
 
-
-		console.log("Filtering Data to send to Sheets");
+        //console.log("Filtering Data to send to Sheets");
 		const rowData = {};
 		for(let key in inav_data_obj)
 		{
@@ -125,20 +100,50 @@ async function start()
 			}
 			rowData[key] = rows;
 		}
-		console.log(rowData);
 
+		const missed_dates_for_proxy_tri = {};
+		for(const key in sectors_for_proxy)
+		{
+			const missed_date_arr = [];
+			const curr_sector = sectors_for_proxy[key];
+			const curr_date = getDDMMYYYY(new Date().setHours(0,0,0,0));
+			let todays_date = new Date().setHours(0,0,0,0);
+			const last_scraped_date = new Date(curr_sector['LATEST_SCRAPED_DATE']).setHours(0,0,0,0);
+			while(todays_date >= last_scraped_date)
+			{
+				let dt = getDDMMYYYY(todays_date);
+				if(dt != curr_date && dt != getDDMMYYYY(last_scraped_date))
+				{
+					missed_date_arr.push(dt);
+				}
+				todays_date = new Date(todays_date);
+				todays_date = new Date(todays_date.setDate(todays_date.getDate() - 1)).setHours(0,0,0,0);
+			}
+			
+			missed_dates_for_proxy_tri[key] = missed_date_arr;
+		}
+
+		const sectorProxyTriChange = await readKMSCRUD(KMS_CRUD_URL, missed_dates_for_proxy_tri);
+		
+		for(const sector in sectorProxyTriChange)
+		{
+			rowData[sector] = sectorProxyTriChange[sector];
+		}
+
+		console.log(rowData);
+		
 		console.log("Sending data to INAV Sheet");
 		axios.post(UPDATE_INAV_SCRIPT_URL, {
 			type: "inav_data_update",
 			data: rowData
 		});
 		console.log("Execution Completed");
-	}
-	catch(error)
-	{
-		console.log("Error occurred while scraping nfity tri data. In start(): ",error.message);
-	}
-
+    }
+    catch(error)
+    {
+        console.log("Error occurred in start: ",error.message);
+		await sendErrorEmail(KMS_CRUD_URL, error.message);
+    }
 }
 
 cron("30 17 * * *", async () => {
@@ -147,4 +152,4 @@ cron("30 17 * * *", async () => {
 {
 	timezone: "Asia/Kolkata"
 });
-// start();
+start();
