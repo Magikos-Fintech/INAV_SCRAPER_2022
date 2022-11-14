@@ -146,7 +146,7 @@ async function start()
     }
 }
 
-cron("30 17 * * *", async () => {
+cron("05 10 * * *", async () => {
 	start();
 },
 {
