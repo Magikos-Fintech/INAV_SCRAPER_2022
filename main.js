@@ -134,10 +134,10 @@ async function start()
 		console.log(rowData);
 		
 		console.log("Sending data to INAV Sheet");
-		// axios.post(UPDATE_INAV_SCRIPT_URL, {
-		// 	type: "inav_data_update",
-		// 	data: rowData
-		// });
+		axios.post(UPDATE_INAV_SCRIPT_URL, {
+			type: "inav_data_update",
+			data: rowData
+		});
 		console.log("Execution Completed");
     }
     catch(error)
@@ -147,10 +147,10 @@ async function start()
     }
 }
 
-// cron("05 10 * * *", async () => {
-// 	start();
-// },
-// {
-// 	timezone: "Asia/Kolkata"
-// });
-start();
+cron("05 10 * * *", async () => {
+	start();
+},
+{
+	timezone: "Asia/Kolkata"
+});
+//start();
