@@ -1,6 +1,6 @@
 const { MS_CRUD_URL, KMS_CRUD_URL, UPDATE_INAV_SCRIPT_URL } = require("./setup");
 const { readMSCRUD, readKMSCRUD, sendErrorEmail, getDDMMYYYY } = require("./extraFunctionalities")
-const { scrape_nse } = require("./nseScraper");
+const { scrape_nse2 } = require("./nseScraper2");
 const { default: axios } = require("axios");
 const cron = require("croner");
 
@@ -33,7 +33,8 @@ async function start()
 		});
 
         console.log("Scraping from NSE");
-		const nse_res = await scrape_nse(sectors);
+		const nse_res = await scrape_nse2(sectors);
+
 		const nse_data = {};
 		for(let key in nse_res)
 		{
@@ -133,10 +134,10 @@ async function start()
 		console.log(rowData);
 		
 		console.log("Sending data to INAV Sheet");
-		axios.post(UPDATE_INAV_SCRIPT_URL, {
-			type: "inav_data_update",
-			data: rowData
-		});
+		// axios.post(UPDATE_INAV_SCRIPT_URL, {
+		// 	type: "inav_data_update",
+		// 	data: rowData
+		// });
 		console.log("Execution Completed");
     }
     catch(error)
@@ -146,10 +147,10 @@ async function start()
     }
 }
 
-cron("05 10 * * *", async () => {
-	start();
-},
-{
-	timezone: "Asia/Kolkata"
-});
-//start();
+// cron("05 10 * * *", async () => {
+// 	start();
+// },
+// {
+// 	timezone: "Asia/Kolkata"
+// });
+start();
